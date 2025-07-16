@@ -55,22 +55,25 @@ void ACCTransmitterSatellite::initializing(constellation::config::Configuration&
     LOG(INFO)<<"Initializing ACC Transmitter Satellite";
     acc_.reset(new ACC());
 
-
+    LOG(INFO)<<"Parse Config";
+    acc_->parseConfig(config);
 }
 
 void ACCTransmitterSatellite::launching(){
-LOG(INFO)<<"Launching";
-LOG(INFO)<<"Get Status";
+    LOG(INFO)<<"Launching";
+    LOG(INFO)<<"Get Status";
     submit_status(std::string(getStatus()));
-// acc_->createAcdcs();
-// acc_->whichAcdcsConnected();
-// acc_->setHardwareTrigSrc(1, 0xff); 
-// acc_->toggleCal(1, 0x7FFF, 0xff);
-// setPedestals(unsigned int boardmask, unsigned int chipmask, unsigned int adc); 
-// acc_->setPedestals(0x7FFF, 0xff, 0xff);
-LOG(INFO)<<"VDD_DLL setting";
-vector<uint32_t> vdd_dll_vec(5, 0x1f);
-acc_->setVddDLL(vdd_dll_vec, true);
+    LOG(INFO)<<"Reinitializing for run";
+    acc_->initializeForDataReadout(partial_config, "");
+    // acc_->createAcdcs();
+    // acc_->whichAcdcsConnected();
+    // acc_->setHardwareTrigSrc(1, 0xff); 
+    // acc_->toggleCal(1, 0x7FFF, 0xff);
+    // setPedestals(unsigned int boardmask, unsigned int chipmask, unsigned int adc); 
+    // acc_->setPedestals(0x7FFF, 0xff, 0xff);
+    //LOG(INFO)<<"VDD_DLL setting";
+    //vector<uint32_t> vdd_dll_vec(5, 0x1f);
+    //acc_->setVddDLL(vdd_dll_vec, true);
 
 }
 

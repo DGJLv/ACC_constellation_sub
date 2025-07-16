@@ -92,7 +92,7 @@ void ACC::parseConfig(const YAML::Node& config)
 }
 */
 
-void ACC::parseConfig(const constellation::config::Configuration& config)
+  void ACC::parseConfig(const constellation::config::Configuration& config)
 {
     if(config.has("humanReadableData")) params_.rawMode = !config.get<bool>("humanReadableData");
 
@@ -211,10 +211,10 @@ int ACC::initializeForDataReadout(const constellation::config::Configuration& co
     parseConfig(config);
 
     //parse ACC specific settings
-//    if(config.has("ACC0"))
-//    {
-//        parseConfig(config.get<constellation::config::Dictionary>("ACC0"));
-//    }
+    if(config.has("ACC0"))
+    {
+        parseConfig(config.get<constellation::config::Dictionary>("ACC0"));
+    }
 
     if(params_.reset) 
     {
