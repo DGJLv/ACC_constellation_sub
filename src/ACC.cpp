@@ -654,6 +654,7 @@ void ACC::setHardwareTrigSrc(int src, unsigned int boardMask)
 	//ACC hardware trigger
         for(unsigned int i = 0; i < 8; ++i)
         {
+            sleep(300);
             if((boardMask >> i) & 1) eth_.send(0x0030+i, ACCtrigMode);
             else                     eth_.send(0x0030+i, 0);
         }
