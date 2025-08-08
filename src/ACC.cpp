@@ -27,9 +27,9 @@ void ACC::got_signal(int){quitacc.store(true);}
 /*--------------------------------Constructor/Deconstructor---------------------------*/
 
 /*ID:5 Constructor*/
-// ACC::ACC() : eth_("192.168.46.107", "2007"), eth_burst_("192.168.46.107", "2008")
-// {
-// }
+ACC::ACC() : eth_("192.168.46.107", "2007"), eth_burst_("192.168.46.107", "2008")
+{
+}
 
 ACC::ACC(const std::string& ip) : eth_(ip, "2007"), eth_burst_(ip, "2008")
 {
