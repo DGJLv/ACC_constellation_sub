@@ -298,7 +298,7 @@ int ACC::initializeForDataReadout(const string& timestamp)
         while(eth_.recieve(0x1138+acdc.getBoardIndex()) < 32 && iTimeout > 0)
         {
             usleep(10);
-            --iTimeout;
+            ++iTimeout;
         }
         if(iTimeout == 0) 
         {
@@ -654,7 +654,7 @@ void ACC::setHardwareTrigSrc(int src, unsigned int boardMask)
 	//ACC hardware trigger
         for(unsigned int i = 0; i < 8; ++i)
         {
-            //usleep(300);
+            // sleep(300);
             if((boardMask >> i) & 1) eth_.send(0x0030+i, ACCtrigMode);
             else                     eth_.send(0x0030+i, 0);
         }

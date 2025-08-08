@@ -53,10 +53,9 @@ std::string ACCTransmitterSatellite::checkVersion()
 void ACCTransmitterSatellite::initializing(constellation::config::Configuration& config)
 {
     LOG(INFO)<<"Initializing ACC Transmitter Satellite";
-    acc_.reset(new ACC());
-    acc_->initializeConfig(config);
-    
-
+    std::string ip = config.get<std::string>("ip"); 
+    acc_.reset(new ACC(ip));                         
+    acc_->initializeConfig(config);  
 }
 
 void ACCTransmitterSatellite::launching(){
