@@ -555,6 +555,7 @@ int ACC::initializeForDataReadout(const string& timestamp)
         rawfn = outfilename + "Raw_";
         if(params_.label.size() > 0) rawfn += params_.label + "_";
         rawfn += timestring + "_b";
+
     }
 
     return rawfn;
@@ -774,12 +775,9 @@ std::vector<std::vector<uint64_t>> ACC::transmitData()
 {
 
 
-    nEvtsMax_ = 0;
     std::vector<std::vector<uint64_t>> all_data;
     int evt = 0;
     int consequentErrors = 0;
-    // while( nEvtsMax_ < params_.eventNumber || params_.eventNumber < 0)
-    // {
         // usleep(5000);
         std::vector<uint64_t> acdc_data = eth_burst_.recieve_burst(1445, 1);
         // timeout at 1s
@@ -843,8 +841,7 @@ std::vector<std::vector<uint64_t>> ACC::transmitData()
                 }
             }
             else if(consequentErrors >= 4) return std::vector<std::vector<uint64_t>>{};
-        }
-
+    }
     // }
     return all_data;
 }

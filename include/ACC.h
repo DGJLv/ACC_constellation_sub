@@ -119,6 +119,7 @@ public:
 	/*--------------------------------------Write functions-------------------------------*/
 	void writeErrorLog(string errorMsg); //writes an errorlog with timestamps for debugging
     bool running_;
+	int eventNumber_ = 0;
 
     class ConfigParams
     {

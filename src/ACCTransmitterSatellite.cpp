@@ -14,7 +14,7 @@
 #include <functional>
 #include <random>
 #include <stop_token>
-#include <string_view>
+#include <string_view> 
 #include <utility>
 #include <vector>
 
@@ -29,7 +29,7 @@ using namespace constellation::satellite;
 using namespace constellation::utils;
 using namespace constellation::protocol::CSCP;
 
-int eventNumber = 0;
+
 
 ACCTransmitterSatellite::ACCTransmitterSatellite(std::string_view type, std::string_view name)
     : TransmitterSatellite(type, name)
@@ -53,8 +53,8 @@ std::string ACCTransmitterSatellite::checkVersion()
 void ACCTransmitterSatellite::initializing(constellation::config::Configuration& config)
 {
     LOG(INFO)<<"Initializing ACC Transmitter Satellite";
-    std::string ip = config.get<std::string>("ip"); 
-    int eventNumber = config.get<int>("nevents");
+    std::string ip = config.get<std::string>("ip");
+    acc_->eventNumber_ = config.get<int>("nevents");
     acc_.reset(new ACC(ip));                         
     acc_->initializeConfig(config);  
 }
@@ -91,8 +91,8 @@ void ACCTransmitterSatellite::starting(std::string_view run_identifier)
 
 void ACCTransmitterSatellite::running(const std::stop_token& stop_token)
 {
-for (int i = 0; i < eventNumber; ++i){
-    while(!stop_token.stop_requested()) {
+int eventCount = 0;
+    while(!stop_token.stop_requested() || eventCount < acc_->eventNumber_) {
         
         LOG(INFO)<<"Running, Listening Data";
         acc_->listenForAcdcData();
@@ -118,7 +118,8 @@ for (int i = 0; i < eventNumber; ++i){
             ++hwm_reached_;
             LOG_N(WARNING, 5) << "Could not send message, skipping...";
         }
-    }
+
+        eventCount++;
 
 }
 }
