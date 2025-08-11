@@ -29,7 +29,7 @@ using namespace constellation::satellite;
 using namespace constellation::utils;
 using namespace constellation::protocol::CSCP;
 
-
+int eventNumber = 0;
 
 ACCTransmitterSatellite::ACCTransmitterSatellite(std::string_view type, std::string_view name)
     : TransmitterSatellite(type, name)
@@ -54,6 +54,7 @@ void ACCTransmitterSatellite::initializing(constellation::config::Configuration&
 {
     LOG(INFO)<<"Initializing ACC Transmitter Satellite";
     std::string ip = config.get<std::string>("ip"); 
+    int eventNumber = config.get<int>("nevents");
     acc_.reset(new ACC(ip));                         
     acc_->initializeConfig(config);  
 }
@@ -90,7 +91,7 @@ void ACCTransmitterSatellite::starting(std::string_view run_identifier)
 
 void ACCTransmitterSatellite::running(const std::stop_token& stop_token)
 {
-
+for (int i = 0; i < eventNumber; ++i){
     while(!stop_token.stop_requested()) {
         
         LOG(INFO)<<"Running, Listening Data";
@@ -119,6 +120,7 @@ void ACCTransmitterSatellite::running(const std::stop_token& stop_token)
         }
     }
 
+}
 }
 
 
