@@ -120,6 +120,7 @@ int eventCount = 0;
         }
         eventCount++;
     }
+    LOG(INFO) << "Running finished after " << eventCount << " events";
     
 }
 
