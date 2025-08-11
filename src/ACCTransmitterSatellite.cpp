@@ -54,8 +54,8 @@ void ACCTransmitterSatellite::initializing(constellation::config::Configuration&
 {
     LOG(INFO)<<"Initializing ACC Transmitter Satellite";
     std::string ip = config.get<std::string>("ip");
-    acc_->eventNumber_ = config.get<int>("nevents");
-    acc_.reset(new ACC(ip));                         
+    acc_.reset(new ACC(ip)); 
+    acc_->eventNumber_ = config.get<int>("nevents"); 
     acc_->initializeConfig(config);  
 }
 
