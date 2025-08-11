@@ -183,8 +183,8 @@ void ACCReceiverSatellite::receive_data(constellation::message::CDTP1Message dat
 
     LOG(INFO) << "Received Data message";
     const auto& header = data_message.getHeader();
-    LOG(DEBUG) << "Writing data event";
-    LOG(DEBUG) << "Received data message from " << header.getSender();
+    LOG(INFO) << "Writing data event";
+    LOG(INFO) << "Received data message from " << header.getSender();
     for (const auto& buffer : data_message.getPayload()) {
         std::span<const std::byte> span = buffer.span();
         file_.write(reinterpret_cast<const char*>(span.data()), static_cast<std::streamsize>(span.size()));
