@@ -92,7 +92,7 @@ void ACCTransmitterSatellite::starting(std::string_view run_identifier)
 void ACCTransmitterSatellite::running(const std::stop_token& stop_token)
 {
 int eventCount = 0;
-    while(!stop_token.stop_requested() || eventCount < acc_->eventNumber_) {
+    while(!stop_token.stop_requested() && eventCount < acc_->eventNumber_) {
         
         LOG(INFO)<<"Running, Listening Data";
         acc_->listenForAcdcData();
