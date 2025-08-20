@@ -605,6 +605,107 @@ void ACC::startRun()
 //     data_write_thread_.reset(new std::thread(&ACC::writeThread, this));
 // }
 
+void ACC::initializeThreads(){
+    receive_thread_.reset(new std::thread(&ACC::receivingThread, this));
+}
+
+void ACC::receivingThread(std::vector<uint64_t> data){
+    zmq::context_t ctx(1);
+    zmq::socket_t sock1(ctx,zmq::socket_type::push);
+    sock1.bind("tcp://*:5555");
+    while(receive_thread_){
+    int evt = 0;
+    int consequentErrors = 0;
+        // usleep(5000);
+        std::vector<uint64_t> acdc_data = eth_burst_.recieve_burst(1445, 1);
+        // timeout at 1s
+        ++evt;
+        std::cout <<"DEBUG: ACDC DATA SIZE: " << acdc_data.size() << "\n";
+        if((acdc_data[0]&0xffffffffffffff00) == 0x123456789abcde00 && 
+           (acdc_data[1]&0xffff000000000000) == 0xac9c000000000000)
+        {
+            int data_bi = acdc_data[0] & 0xff;
+            // 
+            for(ACDC& acdc: acdcs_)
+            {
+                //base command for set data readmode and which board bi to read
+                int bi = acdc.getBoardIndex();
+
+                if(data_bi == bi)
+                {
+                    acdc.incNEvents();
+                    // list it on the queue
+                    sock1.send(zmq::buffer(acdc_data), zmq::send_flags::none);
+                    break;
+                }
+            }
+            consequentErrors = 0;
+        }
+        else
+        {std::cout << "Header error: " << acdc_data[0] << "\t" << consequentErrors << "\n";
+            //versionCheck(true);
+            int i = 0;
+            int i_Stop = 99999999;
+            for(auto& datum : acdc_data)
+            {
+                // printf("%5i: %16lx\n", i, datum);
+                if((datum&0xffffffffffffff00) == 0x123456789abcde00) 
+                {
+                    std::cout << "WEEEEHOOOOO: " << i << "\t" << evt << "\t" << nEvtsMax_ << "\t" << acdc_data.size() << "\n";
+                    i_Stop = i + 8;
+                }
+                ++i;
+                if(i == i_Stop) break;
+            }
+            resetLinks();
+            //std::vector<uint64_t> acdc_data = eth_burst_.recieve_burst(i);
+            //std::cout << "Read: " << acdc_data.size() << std::endl;
+            ++consequentErrors;
+            if(true)
+                // consequentErrors >= 2)
+            {
+                cout << "Flushing data until realigned\n";
+                //try flushing data until relaigned
+                for(int i = 0; i < 15; ++i)
+                {
+                    std::vector<uint64_t> acdc_data = eth_burst_.recieve_burst(2);
+                    if((acdc_data[0]&0xffffffffffffff00) == 0x123456789abcde00 && 
+                       (acdc_data[1]&0xffff000000000000) == 0xac9c000000000000)
+                    {
+                        std::cout << "Found header after flushing: " << i << "\n";
+                        //we found a header, slurp up the rest of this event
+                        eth_burst_.recieve_burst(1445-182);
+                    }
+                }
+            }
+            else if(consequentErrors >= 4) return;
+    }
+    }
+}
+
+
+zmq::message_t ACC::transmitData(){
+    zmq::context_t ctx(1);
+    zmq::socket_t sock2(ctx,zmq::socket_type::pull);
+    sock2.connect("tcp://127.0.0.1:5555");
+        {
+            
+            while(true){
+                zmq::message_t msg;
+                sock2.recv(msg, zmq::recv_flags::none);
+
+            }
+            }
+
+}
+
+void ACC::stopNewThread(){
+    runWriteThread_ = false;
+    if (receive_thread_) {
+        receive_thread_->join();
+    }
+
+}
 
 void ACC::stopRun()
 {
@@ -771,80 +872,78 @@ void ACC::toggleCal(int onoff, unsigned int channelmask, unsigned int boardMask)
 // }
 
 
-std::vector<std::vector<uint64_t>> ACC::transmitData()
-{
+// std::vector<std::vector<uint64_t>> ACC::transmitData()
+// {
+//     std::vector<std::vector<uint64_t>> all_data;
+//     int evt = 0;
+//     int consequentErrors = 0;
+//         // usleep(5000);
+//         std::vector<uint64_t> acdc_data = eth_burst_.recieve_burst(1445, 1);
+//         // timeout at 1s
+//         ++evt;
+//         std::cout <<"DEBUG: ACDC DATA SIZE: " << acdc_data.size() << "\n";
+//         if((acdc_data[0]&0xffffffffffffff00) == 0x123456789abcde00 && 
+//            (acdc_data[1]&0xffff000000000000) == 0xac9c000000000000)
+//         {
+//             int data_bi = acdc_data[0] & 0xff;
+//             // 
+//             for(ACDC& acdc: acdcs_)
+//             {
+//                 //base command for set data readmode and which board bi to read
+//                 int bi = acdc.getBoardIndex();
 
-
-    std::vector<std::vector<uint64_t>> all_data;
-    int evt = 0;
-    int consequentErrors = 0;
-        // usleep(5000);
-        std::vector<uint64_t> acdc_data = eth_burst_.recieve_burst(1445, 1);
-        // timeout at 1s
-        ++evt;
-        std::cout <<"DEBUG: ACDC DATA SIZE: " << acdc_data.size() << "\n";
-        if((acdc_data[0]&0xffffffffffffff00) == 0x123456789abcde00 && 
-           (acdc_data[1]&0xffff000000000000) == 0xac9c000000000000)
-        {
-            int data_bi = acdc_data[0] & 0xff;
-            // 
-            for(ACDC& acdc: acdcs_)
-            {
-                //base command for set data readmode and which board bi to read
-                int bi = acdc.getBoardIndex();
-
-                if(data_bi == bi)
-                {
-                    acdc.incNEvents();
-
-                    all_data.emplace_back(std::move(acdc_data));
-                    break;
-                }
-            }
-            consequentErrors = 0;
-        }
-        else
-        {std::cout << "Header error: " << acdc_data[0] << "\t" << consequentErrors << "\n";
-            //versionCheck(true);
-            int i = 0;
-            int i_Stop = 99999999;
-            for(auto& datum : acdc_data)
-            {
-                // printf("%5i: %16lx\n", i, datum);
-                if((datum&0xffffffffffffff00) == 0x123456789abcde00) 
-                {
-                    std::cout << "WEEEEHOOOOO: " << i << "\t" << evt << "\t" << nEvtsMax_ << "\t" << acdc_data.size() << "\n";
-                    i_Stop = i + 8;
-                }
-                ++i;
-                if(i == i_Stop) break;
-            }
-            resetLinks();
-            //std::vector<uint64_t> acdc_data = eth_burst_.recieve_burst(i);
-            //std::cout << "Read: " << acdc_data.size() << std::endl;
-            ++consequentErrors;
-            if(true)
-                // consequentErrors >= 2)
-            {
-                cout << "Flushing data until realigned\n";
-                //try flushing data until relaigned
-                for(int i = 0; i < 15; ++i)
-                {
-                    std::vector<uint64_t> acdc_data = eth_burst_.recieve_burst(2);
-                    if((acdc_data[0]&0xffffffffffffff00) == 0x123456789abcde00 && 
-                       (acdc_data[1]&0xffff000000000000) == 0xac9c000000000000)
-                    {
-                        std::cout << "Found header after flushing: " << i << "\n";
-                        //we found a header, slurp up the rest of this event
-                        eth_burst_.recieve_burst(1445-182);
-                    }
-                }
-            }
-            else if(consequentErrors >= 4) return std::vector<std::vector<uint64_t>>{};
-    }
-    // }
-    return all_data;
-}
+//                 if(data_bi == bi)
+//                 {
+//                     acdc.incNEvents();
+//                     // list it on the queue
+//                     all_data.emplace_back(std::move(acdc_data));
+//                     break;
+//                 }
+//             }
+//             consequentErrors = 0;
+//         }
+//         else
+//         {std::cout << "Header error: " << acdc_data[0] << "\t" << consequentErrors << "\n";
+//             //versionCheck(true);
+//             int i = 0;
+//             int i_Stop = 99999999;
+//             for(auto& datum : acdc_data)
+//             {
+//                 // printf("%5i: %16lx\n", i, datum);
+//                 if((datum&0xffffffffffffff00) == 0x123456789abcde00) 
+//                 {
+//                     std::cout << "WEEEEHOOOOO: " << i << "\t" << evt << "\t" << nEvtsMax_ << "\t" << acdc_data.size() << "\n";
+//                     i_Stop = i + 8;
+//                 }
+//                 ++i;
+//                 if(i == i_Stop) break;
+//             }
+//             resetLinks();
+//             //std::vector<uint64_t> acdc_data = eth_burst_.recieve_burst(i);
+//             //std::cout << "Read: " << acdc_data.size() << std::endl;
+//             ++consequentErrors;
+//             if(true)
+//                 // consequentErrors >= 2)
+//             {
+//                 cout << "Flushing data until realigned\n";
+//                 //try flushing data until relaigned
+//                 for(int i = 0; i < 15; ++i)
+//                 {
+//                     std::vector<uint64_t> acdc_data = eth_burst_.recieve_burst(2);
+//                     if((acdc_data[0]&0xffffffffffffff00) == 0x123456789abcde00 && 
+//                        (acdc_data[1]&0xffff000000000000) == 0xac9c000000000000)
+//                     {
+//                         std::cout << "Found header after flushing: " << i << "\n";
+//                         //we found a header, slurp up the rest of this event
+//                         eth_burst_.recieve_burst(1445-182);
+//                     }
+//                 }
+//             }
+//             else if(consequentErrors >= 4) return std::vector<std::vector<uint64_t>>{};
+//     }
+//     // }
+//     return all_data;
+// }
 
 /*------------------------------------------------------------------------------------*/
 /*---------------------------Read functions listening for data------------------------*/

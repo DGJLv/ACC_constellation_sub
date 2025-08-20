@@ -9,6 +9,9 @@
 #include <thread>
 #include <utility>
 #include <memory>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
 //#include "yaml-cpp/yaml.h"
 //#include "tomlplusplus/include/toml++/toml.h"
 #include "constellation/core/config/Configuration.hpp"
@@ -104,6 +107,10 @@ public:
     /*ID 27: Turn off triggers and data transfer off */
     void startRun();
 	void startRun_R();
+	void initializeThreads();
+	void receivingThread(std::vector<uint64_t> data);
+	std::vector<std::vector<uint64_t>> transmittingThread(std::vector<uint64_t> data);
+	void stopNewThread();
     void stopRun();
     void endRun();
     void resetLinks();
@@ -114,7 +121,7 @@ public:
     void startDAQThread();
     void joinDAQThread();
 	
-	std::vector<std::vector<uint64_t>> transmitData();
+	zmq::message_t ACC::transmitData()
 	/*------------------------------------------------------------------------------------*/
 	/*--------------------------------------Write functions-------------------------------*/
 	void writeErrorLog(string errorMsg); //writes an errorlog with timestamps for debugging
@@ -151,6 +158,11 @@ private:
 	//----------all neccessary global variables
     std::unique_ptr<std::thread> data_write_thread_;
     std::unique_ptr<std::thread> daq_thread_;
+	std::unique_ptr<std::thread> receive_thread_;
+	std::unique_ptr<std::thread> transmit_thread_;
+	std::queue<std::vector<uint64_t>> data_queue_;
+	std::condition_variable queue_cv_;
+	std::mutex queue_mutex_;
     int nEvtsMax_;
 
 	static void got_signal(int);

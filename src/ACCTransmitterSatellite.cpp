@@ -66,6 +66,7 @@ LOG(INFO)<<"Get Status";
     acc_->initializeForDataReadout("");
     // debug
     acc_->dumpData(acc_->params_.boardMask);
+    acc_->initializeThreads();
 
 }
 
@@ -97,21 +98,27 @@ int eventCount = 0;
         LOG(INFO)<<"Running, Listening Data";
         acc_->listenForAcdcData();
         LOG(INFO)<<"Transmitting Data";
-        std::vector<std::vector<uint64_t>> acdc_data;
+        zmq::message_t acdc_data;
         try{
+        // pull out data from queue
         acdc_data = acc_->transmitData();}
         catch(const std::exception& e){
             LOG(WARNING) << "Burst Readout timeout occurred: " << e.what(); 
         }
         LOG(DEBUG)<< "Transmitted " << acdc_data.size() << " frames";
-        auto msg = newDataMessage(acdc_data.size());
-        LOG(DEBUG) << "Data message created with " << acdc_data.size() << " frames";
-        for(const auto& frame : acdc_data) {
-            // Copy vector to frame
-            msg.addFrame(std::vector{frame});
-            LOG(INFO) << "Added frame of size " << frame.size() << " to message";
-        }
+        
+        // header
+        
 
+        auto msg = newDataMessage(acdc_data.size());
+        
+        LOG(DEBUG) << "Data message created with " << acdc_data.size() << " frames";
+        // for(const auto& frame : acdc_data) {
+        //     // Copy vector to frame
+        //     msg.addFrame(std::vector{frame});
+        //     LOG(INFO) << "Added frame of size " << frame.size() << " to message";
+        // }
+        
         const auto success = trySendDataMessage(msg);
         if(!success) {
             // receiver overloaded or not connected?
@@ -139,7 +146,7 @@ void ACCTransmitterSatellite::landing(std::string_view run_identifier)
 {
     // nothing?
     LOG(INFO)<<"Landing"<< run_identifier;
-
+    acc_->stopThreads();
     
 }
 
@@ -163,3 +170,5 @@ void ACCTransmitterSatellite::landing(std::string_view run_identifier)
 
 // // Logging a message only every T seconds:
 // LOG_T(DEBUG, 5s) << "This message is logged at most every 5s";
+
+
