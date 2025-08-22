@@ -9,9 +9,11 @@
 #include <thread>
 #include <utility>
 #include <memory>
-#include <queue>
-#include <mutex>
+#include <zmq.hpp>
 #include <condition_variable>
+#include <mutex>
+#include <future>
+
 //#include "yaml-cpp/yaml.h"
 //#include "tomlplusplus/include/toml++/toml.h"
 #include "constellation/core/config/Configuration.hpp"
@@ -22,8 +24,6 @@ using namespace std;
 
 #define NUM_CH 30 //maximum number of channels for one ACDC board
 #define MAX_NUM_BOARDS 8 // maxiumum number of ACDC boards connectable to one ACC 
-
-using namespace std;
 
 class ACC
 {
@@ -108,12 +108,13 @@ public:
     void startRun();
 	void startRun_R();
 	void initializeThreads();
-	void receivingThread(std::vector<uint64_t> data);
+	void receivingThread(std::vector<uint64_t> data, std::future<void> future);
 	std::vector<std::vector<uint64_t>> transmittingThread(std::vector<uint64_t> data);
 	void stopNewThread();
     void stopRun();
     void endRun();
     void resetLinks();
+	void flag();
 	//:::
 	void resetACDC(unsigned int boardMask = 0xff); //resets the acdc boards
 	void resetACC(); //resets the acdc boards 
@@ -121,7 +122,7 @@ public:
     void startDAQThread();
     void joinDAQThread();
 	
-	zmq::message_t ACC::transmitData()
+	std::optional<zmq::message_t> transmitData(int timeout_ms);
 	/*------------------------------------------------------------------------------------*/
 	/*--------------------------------------Write functions-------------------------------*/
 	void writeErrorLog(string errorMsg); //writes an errorlog with timestamps for debugging
@@ -160,15 +161,18 @@ private:
     std::unique_ptr<std::thread> daq_thread_;
 	std::unique_ptr<std::thread> receive_thread_;
 	std::unique_ptr<std::thread> transmit_thread_;
-	std::queue<std::vector<uint64_t>> data_queue_;
-	std::condition_variable queue_cv_;
-	std::mutex queue_mutex_;
+	std::unique_ptr<zmq::context_t> zmq_context_ = std::make_unique<zmq::context_t>(1);
+	std::unique_ptr<zmq::socket_t> zmq_push_socket_;
+	std::unique_ptr<zmq::socket_t> zmq_pull_socket_;
+	std::mutex mtx;
+    std::condition_variable cv;
     int nEvtsMax_;
 
 	static void got_signal(int);
     void sendJCPLLSPIWord(unsigned int word, unsigned int boardMask = 0xff, bool verbose = false);
     void writeThread();
-    bool runWriteThread_;
+    bool runThread_;
+	std::promise<void> promise_;
 };
 
 #endif

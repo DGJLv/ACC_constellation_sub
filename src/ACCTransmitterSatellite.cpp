@@ -86,33 +86,37 @@ void ACCTransmitterSatellite::starting(std::string_view run_identifier)
     hwm_reached_ = 0;
     acc_->startRun();
 
-    
+
+    // create thread
     //acc_->startDAQThread();
+    // add condition variable to stop running thread before the main thread starts running
 }
 
 void ACCTransmitterSatellite::running(const std::stop_token& stop_token)
 {
+// stop when all the queue when there's nothing in the queue
 int eventCount = 0;
-    while(!stop_token.stop_requested() && eventCount < acc_->eventNumber_) {
-        
+acc_->flag();
+while(!stop_token.stop_requested() && eventCount < acc_->eventNumber_){
+// no data left ) {
+// have to clear up the queue
         LOG(INFO)<<"Running, Listening Data";
         acc_->listenForAcdcData();
         LOG(INFO)<<"Transmitting Data";
-        zmq::message_t acdc_data;
+        std::optional<zmq::message_t> acdc_data;
         try{
         // pull out data from queue
-        acdc_data = acc_->transmitData();}
+        acdc_data = acc_->transmitData(1000);}
         catch(const std::exception& e){
             LOG(WARNING) << "Burst Readout timeout occurred: " << e.what(); 
         }
-        LOG(DEBUG)<< "Transmitted " << acdc_data.size() << " frames";
         
         // header
         
 
-        auto msg = newDataMessage(acdc_data.size());
+        auto msg = newDataMessage(acdc_data->size());
         
-        LOG(DEBUG) << "Data message created with " << acdc_data.size() << " frames";
+        LOG(DEBUG) << "Data message created with " << acdc_data->size() << " frames";
         // for(const auto& frame : acdc_data) {
         //     // Copy vector to frame
         //     msg.addFrame(std::vector{frame});
@@ -127,6 +131,24 @@ int eventCount = 0;
         }
         eventCount++;
     }
+    // if stop requested or event limit reached send all events to main thread until the queue is empty
+        LOG(INFO) << "Stop requested or event limit reached. Draining data queue...";
+        while (true) {
+        // break when queue is empty
+        std::optional<zmq::message_t> acdc_data_left = acc_->transmitData(0);
+
+        if (acdc_data_left) {
+            LOG(DEBUG) << "Processing one more event from the queue.";
+            auto& acdc_data = *acdc_data_left;
+            auto msg = newDataMessage(acdc_data.size());
+            trySendDataMessage(msg);
+            eventCount++;
+        } else {
+            // exit running state
+            break;
+        }
+    }
+
     LOG(INFO) << "Running finished after " << eventCount << " events";
     
 }
@@ -135,8 +157,10 @@ int eventCount = 0;
 void ACCTransmitterSatellite::stopping()
 {
     //acc_->joinDAQThread();
+    // join thread
     LOG_IF(WARNING, hwm_reached_ > 0) << "Could not send " << hwm_reached_ << " messages";
     LOG(INFO)<<"Stopping";
+    acc_->stopNewThread();
     acc_->endRun();
     LOG(INFO)<<"Stopped";
     
@@ -146,7 +170,7 @@ void ACCTransmitterSatellite::landing(std::string_view run_identifier)
 {
     // nothing?
     LOG(INFO)<<"Landing"<< run_identifier;
-    acc_->stopThreads();
+    
     
 }
 

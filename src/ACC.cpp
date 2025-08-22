@@ -15,6 +15,7 @@
 #include <numeric>
 #include <ctime>
 
+
 using namespace std;
 
 
@@ -589,31 +590,32 @@ void ACC::startRun()
 	eth_.setBurstMode(true);
 	enableTransfer(3); 
 
-    //launch file writer thread
-    //protect variable with mutex?!?
+    initializeThreads();
 
-
-    //enable "auto-transmit" mode for ACC data readout 
     eth_.send(0x23, 1);
 
     setHardwareTrigSrc(params_.triggerMode,params_.boardMask);
 }
 
-// void ACC::startRun_R()
-// {
-//     runWriteThread_ = true;
-//     data_write_thread_.reset(new std::thread(&ACC::writeThread, this));
-// }
-
 void ACC::initializeThreads(){
-    receive_thread_.reset(new std::thread(&ACC::receivingThread, this));
+    runThread_ = true;
+    zmq_context_ = std::make_unique<zmq::context_t>(1);
+    zmq_push_socket_ = std::make_unique<zmq::socket_t>(*zmq_context_, zmq::socket_type::push);
+    zmq_push_socket_->bind("tcp://127.0.0.1:5555");
+    zmq_pull_socket_ = std::make_unique<zmq::socket_t>(*zmq_context_, zmq::socket_type::pull);
+    zmq_pull_socket_->connect("tcp://127.0.0.1:5555");
+
+    std::future<void> start_signal_future = promise_.get_future();
+    // Pass the future to the thread by moving it
+    receive_thread_.reset(new std::thread(&ACC::receivingThread, this, std::move(start_signal_future)));
+    // mutex/conditional variable
+
+    // wait until main thread enters running state
 }
 
-void ACC::receivingThread(std::vector<uint64_t> data){
-    zmq::context_t ctx(1);
-    zmq::socket_t sock1(ctx,zmq::socket_type::push);
-    sock1.bind("tcp://*:5555");
-    while(receive_thread_){
+void ACC::receivingThread(std::vector<uint64_t> data, std::future<void> future){
+    // wait
+    future.wait();
     int evt = 0;
     int consequentErrors = 0;
         // usleep(5000);
@@ -635,7 +637,7 @@ void ACC::receivingThread(std::vector<uint64_t> data){
                 {
                     acdc.incNEvents();
                     // list it on the queue
-                    sock1.send(zmq::buffer(acdc_data), zmq::send_flags::none);
+                    zmq_push_socket_->send(zmq::buffer(acdc_data), zmq::send_flags::none);
                     break;
                 }
             }
@@ -680,37 +682,63 @@ void ACC::receivingThread(std::vector<uint64_t> data){
             }
             else if(consequentErrors >= 4) return;
     }
-    }
 }
 
 
-zmq::message_t ACC::transmitData(){
-    zmq::context_t ctx(1);
-    zmq::socket_t sock2(ctx,zmq::socket_type::pull);
-    sock2.connect("tcp://127.0.0.1:5555");
-        {
+// zmq::message_t ACC::transmitData(){
+//     zmq::context_t ctx(1);
+//     zmq::socket_t sock2(ctx,zmq::socket_type::pull);
+//     sock2.connect("tcp://127.0.0.1:5555");
+//         {
             
-            while(true){
-                zmq::message_t msg;
-                sock2.recv(msg, zmq::recv_flags::none);
+//             while(true){
+//                 zmq::message_t msg;
+//                 sock2.recv(msg, zmq::recv_flags::none);
 
-            }
-            }
+//             }
+//             }
 
+// }
+void ACC::flag(){
+    promise_.set_value();
+}
+
+// Modify transmitData to accept a timeout
+std::optional<zmq::message_t> ACC::transmitData(int timeout_ms) {
+    if (!zmq_pull_socket_) {
+        return std::nullopt;
+    }
+    // one time promise 
+
+
+    zmq_pull_socket_->setsockopt(ZMQ_RCVTIMEO, timeout_ms);
+
+    zmq::message_t msg;
+    try {
+        if (auto res = zmq_pull_socket_->recv(msg, zmq::recv_flags::none)) {
+            return msg;
+        }
+    } catch (const zmq::error_t& e) {
+        if (e.num() == EAGAIN) {
+            return std::nullopt;
+        }
+        throw;
+    }
+    return std::nullopt;
 }
 
 void ACC::stopNewThread(){
-    runWriteThread_ = false;
+    runThread_ = false;
     if (receive_thread_) {
         receive_thread_->join();
     }
 
 }
 
-void ACC::stopRun()
-{
-    runWriteThread_ = false;
-}
+// void ACC::stopRun()
+// {
+//     runThread_ = false;
+// }
 
 /*ID 21: Set up the hardware trigger*/
 void ACC::setHardwareTrigSrc(int src, unsigned int boardMask)
