@@ -613,7 +613,7 @@ void ACC::initializeThreads(){
     // wait until main thread enters running state
 }
 
-void ACC::receivingThread(std::vector<uint64_t> data, std::future<void> future){
+void ACC::receivingThread(std::future<void> future){
     // wait
     future.wait();
     int evt = 0;
@@ -711,7 +711,7 @@ std::optional<zmq::message_t> ACC::transmitData(int timeout_ms) {
     // one time promise 
 
 
-    zmq_pull_socket_->setsockopt(ZMQ_RCVTIMEO, timeout_ms);
+    zmq_pull_socket_->set(zmq::sockopt::rcvtimeo, timeout_ms);
 
     zmq::message_t msg;
     try {

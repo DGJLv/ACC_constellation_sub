@@ -106,10 +106,8 @@ public:
 
     /*ID 27: Turn off triggers and data transfer off */
     void startRun();
-	void startRun_R();
 	void initializeThreads();
-	void receivingThread(std::vector<uint64_t> data, std::future<void> future);
-	std::vector<std::vector<uint64_t>> transmittingThread(std::vector<uint64_t> data);
+	void receivingThread(std::future<void> future);
 	void stopNewThread();
     void stopRun();
     void endRun();
