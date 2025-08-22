@@ -599,23 +599,23 @@ void ACC::startRun()
 
 void ACC::initializeThreads(){
     runThread_ = true;
-zmq_context_ = std::make_unique<zmq::context_t>(1);
-zmq_push_socket_ = std::make_unique<zmq::socket_t>(*zmq_context_, zmq::socket_type::push);
-zmq_pull_socket_ = std::make_unique<zmq::socket_t>(*zmq_context_, zmq::socket_type::pull);
+    zmq_context_ = std::make_unique<zmq::context_t>(1);
+    zmq_push_socket_ = std::make_unique<zmq::socket_t>(*zmq_context_, zmq::socket_type::push);
+    zmq_pull_socket_ = std::make_unique<zmq::socket_t>(*zmq_context_, zmq::socket_type::pull);
 
-// inproc endpoint name is arbitrary but must be unique within the process
-const char* endpoint = "inproc://acc_queue";
+    // inproc endpoint name is arbitrary but must be unique within the process
+    const char* endpoint = "inproc://acc_queue";
 
-// ZMQ best practice: set LINGER to 0 so close() never hangs on shutdown
-int zero = 0;
-zmq_push_socket_->set(zmq::sockopt::linger, zero);
-zmq_pull_socket_->set(zmq::sockopt::linger, zero);
+    // ZMQ best practice: set LINGER to 0 so close() never hangs on shutdown
+    int zero = 0;
+    zmq_push_socket_->set(zmq::sockopt::linger, zero);
+    zmq_pull_socket_->set(zmq::sockopt::linger, zero);
 
-// Order matters for inproc: bind first, then connect
-zmq_push_socket_->bind(endpoint);
-zmq_pull_socket_->connect(endpoint);
+    // Order matters for inproc: bind first, then connect
+    zmq_push_socket_->bind(endpoint);
+    zmq_pull_socket_->connect(endpoint);
     std::future<void> start_signal_future = promise_.get_future();
-    // Pass the future to the thread by moving it
+        // Pass the future to the thread by moving it
     receive_thread_.reset(new std::thread(&ACC::receivingThread, this, std::move(start_signal_future)));
     // mutex/conditional variable
 
